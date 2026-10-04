@@ -1,8 +1,17 @@
 import type { Item, ListState } from "../../shared/types";
 import { ListConnection } from "../lib/ws";
 import { deleteItemImage, fetchListState, itemImageUrl, uploadItemImage } from "../lib/http";
-import { cacheListState, forgetEditKey, getCachedListState, getEditKey, touchRecentList } from "../lib/storage";
-import { uid } from "../lib/id";
+import {
+  cacheListState,
+  forgetEditKey,
+  forgetReservationToken,
+  getCachedListState,
+  getEditKey,
+  getReservationTokens,
+  saveReservationToken,
+  touchRecentList,
+} from "../lib/storage";
+import { randomToken, uid } from "../lib/id";
 import { escapeHtml } from "../lib/dom";
 import { icons } from "../lib/icons";
 import { wireConfirmClick } from "../lib/confirmClick";
@@ -78,7 +87,13 @@ export function mountListView(
   const pendingUploads = new Map<string, Blob>();
   let undoTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const conn = new ListConnection(code, editKey);
+  // Aperçu du propriétaire : la clé est envoyée avec ?preview=1 pour que le
+  // serveur lui cache les réservations (voir worker/reservations.ts).
+  const ownerPreview = opts.preview && storedKey !== null;
+  const conn = new ListConnection(code, ownerPreview ? storedKey : editKey, ownerPreview);
+  // Les invités voient et font les réservations ; jamais le propriétaire.
+  const showReservations = () => !canEdit && !ownerPreview;
+  const pendingReservations = new Map<string, string>();
 
   root.innerHTML = `
     <div class="list-view">
@@ -119,7 +134,7 @@ export function mountListView(
     const src = imageSrc(item);
     const name = escapeHtml(item.name);
     return `
-      <li class="wish" data-id="${escapeHtml(item.id)}">
+      <li class="wish${showReservations() && item.reserved && !isMine(item) ? " wish-reserved" : ""}" data-id="${escapeHtml(item.id)}">
         ${canEdit ? `<button type="button" class="wish-handle icon-btn" aria-label="Déplacer « ${name} »" title="Glisser pour déplacer">${icons.gripVertical}</button>` : ""}
         <div class="wish-media">
           ${
@@ -139,6 +154,7 @@ export function mountListView(
               ? `<a class="wish-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${icons.externalLink}<span>${escapeHtml(linkLabel(item.link))}</span></a>`
               : ""
           }
+          ${showReservations() ? reservationHtml(item, name) : ""}
         </div>
         ${
           canEdit
@@ -149,6 +165,60 @@ export function mountListView(
             : ""
         }
       </li>`;
+  }
+
+  function isMine(item: Item): boolean {
+    return getReservationTokens(code)[item.id] !== undefined;
+  }
+
+  function reservationHtml(item: Item, name: string): string {
+    if (!item.reserved) {
+      return `<button type="button" class="btn small reserve-btn" aria-label="Réserver « ${name} »">${icons.bookmark} Je le réserve</button>`;
+    }
+    if (isMine(item)) {
+      return `<div class="reservation reservation-mine">
+          <span class="reservation-badge">${icons.bookmarkFilled} Réservé par toi</span>
+          <button type="button" class="btn small unreserve-btn" aria-label="Annuler ma réservation de « ${name} »">Annuler</button>
+        </div>`;
+    }
+    return `<div class="reservation"><span class="reservation-badge">${icons.bookmarkFilled} Déjà réservé</span></div>`;
+  }
+
+  function reserve(id: string): void {
+    const token = randomToken();
+    // Gardé en attente jusqu'à la confirmation du serveur
+    // (reservationResult) : si quelqu'un a réservé juste avant, ce jeton ne
+    // doit pas faire croire que la réservation est à nous.
+    pendingReservations.set(id, token);
+    conn.send({ type: "reserveItem", id, token });
+  }
+
+  function unreserve(id: string): void {
+    const token = getReservationTokens(code)[id];
+    if (token) conn.send({ type: "unreserveItem", id, token });
+  }
+
+  function onReservationResult(result: { id: string; reserved: boolean; ok: boolean }): void {
+    if (result.reserved) {
+      const token = pendingReservations.get(result.id);
+      pendingReservations.delete(result.id);
+      if (result.ok && token) {
+        saveReservationToken(code, result.id, token);
+        showToast("Réservé ! La personne qui a fait la liste ne le verra pas.", () => unreserve(result.id));
+      }
+    } else if (result.ok) {
+      forgetReservationToken(code, result.id);
+    }
+    renderItems();
+  }
+
+  /** Oublie les jetons locaux devenus inutiles (souhait supprimé, ou
+   * réservation retirée entre-temps). */
+  function pruneReservationTokens(next: ListState): void {
+    for (const id of Object.keys(getReservationTokens(code))) {
+      const item = next.items.find((i) => i.id === id);
+      if (!item || !item.reserved) forgetReservationToken(code, id);
+    }
   }
 
   function renderHeader(): void {
@@ -171,6 +241,11 @@ export function mountListView(
       banner.innerHTML = `
         <span class="mode-banner-text">${icons.eye} <strong>Mode lecture</strong></span>
         <span class="mode-banner-presence" id="banner-presence">${connected ? presenceLabel(presence) : "Hors ligne"}</span>
+        <p class="mode-banner-hint">${
+          ownerPreview
+            ? "Aperçu : les réservations des invités restent cachées pour toi."
+            : "Réserve un cadeau pour éviter les doublons : la personne qui a fait la liste ne voit pas les réservations."
+        }</p>
         ${opts.preview && storedKey ? '<button type="button" class="btn small" id="btn-exit-preview">Revenir à l\'édition</button>' : ""}
       `;
       banner.querySelector("#btn-exit-preview")?.addEventListener("click", () => navigate(`/l/${code}`));
@@ -224,6 +299,8 @@ export function mountListView(
         const src = item && imageSrc(item);
         if (item && src) openImageLightbox(src, item.name);
       });
+      li.querySelector(".reserve-btn")?.addEventListener("click", () => reserve(id));
+      li.querySelector(".unreserve-btn")?.addEventListener("click", () => unreserve(id));
       if (!canEdit) return;
       li.querySelector(".wish-edit")?.addEventListener("click", () => editItem(id));
       const del = li.querySelector<HTMLButtonElement>(".wish-delete");
@@ -456,6 +533,7 @@ export function mountListView(
       notFound = false;
       cacheListState(next);
       touchRecentList(next.code, next.name);
+      if (showReservations()) pruneReservationTokens(next);
       flushPendingUploads();
       render();
     }),
@@ -472,6 +550,7 @@ export function mountListView(
         render();
       }
     }),
+    conn.onReservationResult(onReservationResult),
     conn.onPresence((count) => {
       presence = count;
       renderHeader();

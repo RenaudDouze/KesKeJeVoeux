@@ -24,6 +24,8 @@ npm run test:e2e       # playwright, starts its own vite dev server
 - Presence: the DO broadcasts `{type:"presence", count}` on every connect/close (all sockets, both modes).
 - Client: edit keys live in `localStorage` (`kkjv:editKeys`). The edit link carries the key in the URL fragment (`#cle=…`); `main.ts` saves it and strips it from the address bar. `?lecture` forces the guest view even with a key. The server's `welcome.canEdit` is authoritative — a rejected key is forgotten.
 
+- Reservations (guests reserving a wish): stored apart from `ListState` (`reservations` key in DO storage: itemId → SHA-256 of a per-reservation token kept by the reserving device in `kkjv:reservations`). Socket roles are `editor` / `viewer` / `preview` (owner's "Voir comme un invité": valid key + `?preview=1`). Only `viewer` may reserve, and only `viewer` sockets get `reserved: true` on items (`viewForRole`, `worker/reservations.ts`); HTTP routes never include them. The reserving device learns success via `reservationResult` (sent to it alone). The owner must never receive reservations, in any mode.
+
 Never weaken this: read-only users must not be able to reach edit mode, and the edit key must never be broadcast.
 
 ## Photos

@@ -18,15 +18,22 @@ export class ListConnection {
   private connListeners = new Set<Listener<boolean>>();
   private welcomeListeners = new Set<Listener<boolean>>();
   private presenceListeners = new Set<Listener<number>>();
+  private reservationListeners = new Set<Listener<{ id: string; reserved: boolean; ok: boolean }>>();
 
+  /** `preview` : le propriétaire regarde sa liste comme un invité — la clé
+   * est quand même envoyée, pour que le serveur lui cache les réservations. */
   constructor(
     private code: string,
     private editKey: string | null,
+    private preview = false,
   ) {}
 
   connect(): void {
     this.closedByUser = false;
-    const query = this.editKey ? `?key=${encodeURIComponent(this.editKey)}` : "";
+    const params = new URLSearchParams();
+    if (this.editKey) params.set("key", this.editKey);
+    if (this.editKey && this.preview) params.set("preview", "1");
+    const query = params.size ? `?${params}` : "";
     const ws = new WebSocket(wsUrl(`/api/lists/${encodeURIComponent(this.code)}/ws${query}`));
     this.ws = ws;
 
@@ -46,6 +53,7 @@ export class ListConnection {
       if (msg.type === "state") for (const l of this.stateListeners) l(msg.state);
       else if (msg.type === "welcome") for (const l of this.welcomeListeners) l(msg.canEdit);
       else if (msg.type === "presence") for (const l of this.presenceListeners) l(msg.count);
+      else if (msg.type === "reservationResult") for (const l of this.reservationListeners) l(msg);
       else if (msg.type === "error") for (const l of this.errorListeners) l(msg.message);
     });
 
@@ -98,5 +106,9 @@ export class ListConnection {
 
   onPresence(listener: Listener<number>): () => void {
     return this.subscribe(this.presenceListeners, listener);
+  }
+
+  onReservationResult(listener: Listener<{ id: string; reserved: boolean; ok: boolean }>): () => void {
+    return this.subscribe(this.reservationListeners, listener);
   }
 }

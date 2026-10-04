@@ -75,6 +75,31 @@ export function forgetEditKey(code: string): void {
   safeSet(KEYS_KEY, keys);
 }
 
+// Réservations faites depuis cet appareil : code → (id du souhait → jeton).
+// Le jeton est le seul moyen d'annuler sa propre réservation.
+const RESERVATIONS_KEY = "kkjv:reservations";
+
+function getAllReservationTokens(): Record<string, Record<string, string>> {
+  return safeParse<Record<string, Record<string, string>>>(safeGet(RESERVATIONS_KEY)) ?? {};
+}
+
+export function getReservationTokens(code: string): Record<string, string> {
+  return getAllReservationTokens()[code] ?? {};
+}
+
+export function saveReservationToken(code: string, itemId: string, token: string): void {
+  const all = getAllReservationTokens();
+  all[code] = { ...all[code], [itemId]: token };
+  safeSet(RESERVATIONS_KEY, all);
+}
+
+export function forgetReservationToken(code: string, itemId: string): void {
+  const all = getAllReservationTokens();
+  if (!all[code]?.[itemId]) return;
+  delete all[code][itemId];
+  safeSet(RESERVATIONS_KEY, all);
+}
+
 export function cacheListState(state: ListState): void {
   safeSet(CACHE_PREFIX + state.code, state);
 }

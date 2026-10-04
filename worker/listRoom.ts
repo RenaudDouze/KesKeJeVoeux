@@ -1,7 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 import type { ListState, ClientMessage, ServerMessage } from "../shared/types";
-import { applyMessage, isAllowedFromClient } from "./reducer";
+import { applyMessage, isAllowedFromClient, type Role } from "./reducer";
 import { verifyEditKey } from "./access";
+import { applyReservation, viewForRole, type Reservations } from "./reservations";
 import { deriveKey, encryptWithKey, decryptWithKey, type EncryptedPayload } from "./crypto";
 
 interface Env {
@@ -10,14 +11,16 @@ interface Env {
 
 const STATE_KEY = "state";
 const EDIT_KEY_HASH_KEY = "editKeyHash";
-const EDITOR_TAG = "editor";
-const VIEWER_TAG = "viewer";
+const RESERVATIONS_KEY = "reservations";
 
 type StoredRecord = { encrypted: true } & EncryptedPayload;
 
 export class ListRoom extends DurableObject<Env> {
   private listState: ListState | null = null;
   private editKeyHash: string | null = null;
+  // Stockées à part de l'état de la liste : jamais envoyées au propriétaire
+  // (voir viewForRole dans worker/reservations.ts).
+  private reservations: Reservations = {};
   private loaded = false;
   // Le code ne change jamais pour une instance donnée (c'est son identité,
   // voir idFromName dans worker/index.ts) : la clé de chiffrement dérivée
@@ -34,6 +37,7 @@ export class ListRoom extends DurableObject<Env> {
     const raw = await this.ctx.storage.get<StoredRecord>(STATE_KEY);
     this.listState = raw ? await decryptWithKey<ListState>(await this.getCryptoKey(), raw) : null;
     this.editKeyHash = (await this.ctx.storage.get<string>(EDIT_KEY_HASH_KEY)) ?? null;
+    this.reservations = (await this.ctx.storage.get<Reservations>(RESERVATIONS_KEY)) ?? {};
     this.loaded = true;
   }
 
@@ -46,12 +50,15 @@ export class ListRoom extends DurableObject<Env> {
     // pas à son chemin.
     if (request.headers.get("Upgrade") === "websocket") {
       if (!this.listState) return new Response("not found", { status: 404 });
-      const canEdit = await verifyEditKey(url.searchParams.get("key"), this.editKeyHash);
+      const keyOk = await verifyEditKey(url.searchParams.get("key"), this.editKeyHash);
+      // ?preview=1 : le propriétaire (clé valide) regarde sa liste comme un
+      // invité — lecture seule, mais toujours sans les réservations.
+      const role: Role = keyOk ? (url.searchParams.get("preview") === "1" ? "preview" : "editor") : "viewer";
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
-      this.ctx.acceptWebSocket(server, [canEdit ? EDITOR_TAG : VIEWER_TAG]);
-      this.send(server, { type: "welcome", canEdit });
-      this.send(server, { type: "state", state: this.listState });
+      this.ctx.acceptWebSocket(server, [role]);
+      this.send(server, { type: "welcome", canEdit: role === "editor" });
+      this.send(server, { type: "state", state: viewForRole(this.listState, this.reservations, role) });
       this.broadcastPresence();
       return new Response(null, { status: 101, webSocket: client });
     }
@@ -116,13 +123,28 @@ export class ListRoom extends DurableObject<Env> {
     }
     if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return;
 
-    const canEdit = this.ctx.getTags(ws).includes(EDITOR_TAG);
-    if (!isAllowedFromClient(msg, canEdit)) {
+    const role = this.roleOf(ws);
+    if (!isAllowedFromClient(msg, role)) {
       this.send(ws, { type: "error", message: "Cette liste est en lecture seule." });
       return;
     }
     if (msg.type === "sync") {
-      this.send(ws, { type: "state", state: this.listState });
+      this.send(ws, { type: "state", state: viewForRole(this.listState, this.reservations, role) });
+      return;
+    }
+
+    if (msg.type === "reserveItem" || msg.type === "unreserveItem") {
+      const result = await applyReservation(this.listState, this.reservations, msg);
+      const reserved = msg.type === "reserveItem";
+      if (!result.ok) {
+        this.send(ws, { type: "reservationResult", id: msg.id, reserved, ok: false });
+        this.send(ws, { type: "error", message: result.error });
+        return;
+      }
+      this.reservations = result.reservations;
+      await this.ctx.storage.put(RESERVATIONS_KEY, this.reservations);
+      this.send(ws, { type: "reservationResult", id: msg.id, reserved, ok: true });
+      this.broadcastState();
       return;
     }
 
@@ -165,8 +187,22 @@ export class ListRoom extends DurableObject<Env> {
   private async applyAndBroadcast(msg: ClientMessage): Promise<void> {
     applyMessage(this.listState!, msg);
     await this.persist();
-    const payload: ServerMessage = { type: "state", state: this.listState! };
-    for (const ws of this.ctx.getWebSockets()) this.send(ws, payload);
+    this.broadcastState();
+  }
+
+  private roleOf(ws: WebSocket): Role {
+    const tags = this.ctx.getTags(ws);
+    return tags.includes("editor") ? "editor" : tags.includes("preview") ? "preview" : "viewer";
+  }
+
+  /** Chaque connexion reçoit la vue de son rôle : avec les réservations
+   * pour les invités, sans pour le propriétaire (édition ou aperçu). */
+  private broadcastState(): void {
+    const ownerPayload: ServerMessage = { type: "state", state: viewForRole(this.listState!, this.reservations, "editor") };
+    const viewerPayload: ServerMessage = { type: "state", state: viewForRole(this.listState!, this.reservations, "viewer") };
+    for (const ws of this.ctx.getWebSockets()) {
+      this.send(ws, this.roleOf(ws) === "viewer" ? viewerPayload : ownerPayload);
+    }
   }
 
   private async persist(): Promise<void> {
