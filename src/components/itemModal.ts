@@ -1,9 +1,9 @@
 import type { Item } from "../../shared/types";
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "../../shared/types";
 import { escapeHtml } from "../lib/dom";
 import { icons } from "../lib/icons";
 import { trapFocus } from "../lib/focusTrap";
 import { parsePriceInput } from "../lib/price";
+import { prepareImage } from "../lib/prepareImage";
 
 export interface ItemFormResult {
   name: string;
@@ -11,8 +11,8 @@ export interface ItemFormResult {
   link: string;
   imageUrl: string;
   price: number | null;
-  /** Nouvelle photo à envoyer, le cas échéant. */
-  file: File | null;
+  /** Nouvelle photo à envoyer (déjà redimensionnée), le cas échéant. */
+  file: Blob | null;
   /** L'utilisateur a retiré la photo déjà envoyée. */
   removeUploadedImage: boolean;
 }
@@ -28,7 +28,8 @@ export interface ItemModalOptions {
  * prix, lien, et une image (photo envoyée, ou URL d'une image en ligne). */
 export function openItemModal(opts: ItemModalOptions): void {
   const { item } = opts;
-  let file: File | null = null;
+  let file: Blob | null = null;
+  let preparing = false;
   let filePreviewUrl: string | null = null;
   let uploadedSrc = opts.uploadedImageSrc ?? null;
   let removeUploadedImage = false;
@@ -63,7 +64,9 @@ export function openItemModal(opts: ItemModalOptions): void {
             <button type="button" class="btn" id="pick-image">${icons.image} Choisir une photo</button>
             <button type="button" class="btn" id="remove-image" hidden>${icons.trash} Retirer</button>
           </div>
-          <input id="item-image-file" type="file" accept="${ALLOWED_IMAGE_TYPES.join(",")}" hidden />
+          <p class="image-status" id="image-status" role="status" hidden></p>
+          <p class="error image-error" id="image-error" role="alert" hidden></p>
+          <input id="item-image-file" type="file" accept="image/*" hidden />
           <label class="field sub-field">
             <span>ou l'adresse d'une image en ligne</span>
             <input id="item-image-url" type="url" maxlength="2000" value="${escapeHtml(item?.imageUrl ?? "")}" placeholder="https://…/image.jpg" />
@@ -87,6 +90,9 @@ export function openItemModal(opts: ItemModalOptions): void {
   const preview = $<HTMLElement>("#image-preview");
   const removeBtn = $<HTMLButtonElement>("#remove-image");
   const errorEl = $<HTMLElement>("#item-error");
+  const imageErrorEl = $<HTMLElement>("#image-error");
+  const imageStatusEl = $<HTMLElement>("#image-status");
+  const submitBtn = $<HTMLButtonElement>("#item-form button[type=submit]");
 
   function renderPreview(): void {
     const src = filePreviewUrl ?? uploadedSrc ?? (imageUrlInput.value.trim() || null);
@@ -102,23 +108,36 @@ export function openItemModal(opts: ItemModalOptions): void {
   }
 
   $("#pick-image").addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", () => {
+  // Erreur affichée juste sous la photo (et amenée à l'écran) : en bas d'un
+  // long formulaire sur téléphone, elle passerait inaperçue.
+  function showImageError(message: string): void {
+    imageErrorEl.textContent = message;
+    imageErrorEl.hidden = false;
+    imageErrorEl.scrollIntoView({ block: "nearest" });
+  }
+
+  fileInput.addEventListener("change", async () => {
     const picked = fileInput.files?.[0];
     fileInput.value = "";
     if (!picked) return;
-    if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(picked.type)) {
-      showError("Format d'image non supporté (PNG, JPEG, WebP ou GIF).");
-      return;
+    imageErrorEl.hidden = true;
+    preparing = true;
+    submitBtn.disabled = true;
+    imageStatusEl.textContent = "Préparation de la photo…";
+    imageStatusEl.hidden = false;
+    try {
+      const prepared = await prepareImage(picked);
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+      file = prepared;
+      filePreviewUrl = URL.createObjectURL(prepared);
+      renderPreview();
+    } catch (err) {
+      showImageError(err instanceof Error && err.message ? err.message : "Impossible de lire cette image.");
+    } finally {
+      preparing = false;
+      submitBtn.disabled = false;
+      imageStatusEl.hidden = true;
     }
-    if (picked.size > MAX_IMAGE_BYTES) {
-      showError("Image trop volumineuse (5 Mo max).");
-      return;
-    }
-    errorEl.hidden = true;
-    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
-    file = picked;
-    filePreviewUrl = URL.createObjectURL(picked);
-    renderPreview();
   });
   removeBtn.addEventListener("click", () => {
     if (filePreviewUrl) {
@@ -154,6 +173,7 @@ export function openItemModal(opts: ItemModalOptions): void {
 
   $<HTMLFormElement>("#item-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (preparing) return;
     const name = nameInput.value.trim();
     if (!name) {
       showError("Donne un nom à ce souhait.");

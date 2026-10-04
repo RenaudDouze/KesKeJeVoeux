@@ -889,3 +889,23 @@ a:focus-visible,
   vertical-align: -0.15em;
   color: var(--primary);
 }
+
+.toast-error {
+  background: var(--danger);
+  color: #fff;
+}
+
+.toast-error .icon-btn {
+  color: #fff;
+}
+
+.image-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.image-error {
+  margin: 0;
+  font-weight: 600;
+}

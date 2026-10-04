@@ -26,11 +26,15 @@ npm run test:e2e       # playwright, starts its own vite dev server
 
 Never weaken this: read-only users must not be able to reach edit mode, and the edit key must never be broadcast.
 
+## Photos
+
+Picked photos are never uploaded as-is: `src/lib/prepareImage.ts` decodes them in the browser, resizes to 1600 px max (`fitWithin`, `src/lib/imageSize.ts`) and re-encodes to JPEG, so phone photos (often > 5 MB, or HEIC on iPhone) fit the server limit. Errors must stay visible: picking errors show right under the photo in the item modal; upload results always produce a toast ("Photo enregistrée" or a red error toast with a close button).
+
 ## PWA
 
 `vite-plugin-pwa` (manifest + service worker, build only). `src/lib/install.ts` captures `beforeinstallprompt` at boot (`main.ts`) to drive the "Installer l'app" button (home + list menu); on iOS there is no prompt, so `src/components/installModal.ts` shows Safari's manual steps. Nothing is offered when already running standalone. Icons in `public/` (maskable variant keeps the glyph in the 80% safe zone).
 
 ## Testing
 
-- Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`.
+- Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`, `src/lib/imageSize.ts`.
 - E2E (Playwright, `e2e/`): everything else (DO glue, views, components). Add client behavior tests there.
