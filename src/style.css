@@ -597,6 +597,9 @@ a:focus-visible,
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  /* Centré par left: 50% + translate : sans largeur explicite, la boîte
+     serait limitée à la moitié de l'écran et le texte s'empilerait. */
+  width: max-content;
   max-width: calc(100% - 2rem);
   background: var(--text);
   color: var(--bg);
@@ -908,4 +911,49 @@ a:focus-visible,
 .image-error {
   margin: 0;
   font-weight: 600;
+}
+
+/* ---------- Réservations (invités uniquement) ---------- */
+
+.mode-banner-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.reserve-btn {
+  align-self: flex-start;
+  margin-top: 0.3rem;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.reservation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.reservation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.2em 0.7em;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.reservation-mine .reservation-badge {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.wish-reserved {
+  opacity: 0.6;
 }

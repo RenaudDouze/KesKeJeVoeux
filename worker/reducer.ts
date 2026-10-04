@@ -59,13 +59,23 @@ function applyFields(item: Item, fields: ItemFields): void {
   }
 }
 
-/** Seul "sync" est permis en lecture seule. `setItemImage` n'est jamais
- * accepté d'un client, même éditeur : il n'est émis que par le worker, une
- * fois l'image réellement écrite (ou supprimée) en R2. */
-export function isAllowedFromClient(msg: ClientMessage, canEdit: boolean): boolean {
+/** Rôle d'une connexion, fixé à l'ouverture du WebSocket :
+ * - "editor" : clé d'édition valide, modifie la liste, ne voit jamais les
+ *   réservations ;
+ * - "viewer" : invité, lecture seule, voit et fait les réservations ;
+ * - "preview" : le propriétaire en « Voir comme un invité » (clé valide mais
+ *   aperçu demandé) — lecture seule, et toujours sans les réservations. */
+export type Role = "editor" | "viewer" | "preview";
+
+/** Seul "sync" est permis à tous. `setItemImage` n'est jamais accepté d'un
+ * client, même éditeur : il n'est émis que par le worker, une fois l'image
+ * réellement écrite (ou supprimée) en R2. Les réservations sont réservées
+ * aux invités (voir worker/reservations.ts). */
+export function isAllowedFromClient(msg: ClientMessage, role: Role): boolean {
   if (msg.type === "sync") return true;
   if (msg.type === "setItemImage") return false;
-  return canEdit;
+  if (msg.type === "reserveItem" || msg.type === "unreserveItem") return role === "viewer";
+  return role === "editor";
 }
 
 /** Applique un message en modifiant `state` sur place. */
@@ -133,6 +143,12 @@ export function applyMessage(state: ListState, msg: ClientMessage, now: number =
       item.updatedAt = now;
       return;
     }
+
+    // Gérés à part (worker/reservations.ts) : ils ne modifient pas l'état
+    // de la liste lui-même, seulement les réservations, stockées ailleurs.
+    case "reserveItem":
+    case "unreserveItem":
+      return;
 
     case "restoreItem": {
       const source = msg.item;
