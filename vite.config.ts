@@ -29,6 +29,7 @@ export default defineConfig({
         short_name: "KesKeJeVoeux",
         description: "Ma liste de souhaits, à partager en lecture seule.",
         lang: "fr",
+        id: base,
         start_url: base,
         scope: base,
         display: "standalone",

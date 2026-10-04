@@ -867,3 +867,25 @@ a:focus-visible,
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
 }
+
+/* ---------- Installation (PWA) ---------- */
+
+.install-btn {
+  margin-top: 1rem;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.install-steps {
+  margin: 0;
+  padding-left: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.install-inline-icon {
+  display: inline-flex;
+  vertical-align: -0.15em;
+  color: var(--primary);
+}

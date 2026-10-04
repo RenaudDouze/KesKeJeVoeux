@@ -6,10 +6,12 @@ import { applyAccessibilityPreference, getAccessibilityPreference } from "./lib/
 import { appPath, routePath } from "./lib/basePath";
 import { editKeyFromHash } from "./lib/editLink";
 import { saveEditKey } from "./lib/storage";
+import { initInstallPrompt } from "./lib/install";
 
 // Appliqué avant le premier rendu pour éviter un flash du mauvais thème.
 applyTheme(getThemePreference());
 applyAccessibilityPreference(getAccessibilityPreference());
+initInstallPrompt();
 
 const app = document.getElementById("app")!;
 let cleanup: (() => void) | null = null;
