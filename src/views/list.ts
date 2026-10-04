@@ -12,6 +12,8 @@ import { cycleThemePreference, getThemePreference, themeLabel } from "../lib/the
 import { openShareModal } from "../components/shareModal";
 import { openItemModal, type ItemFormResult } from "../components/itemModal";
 import { openAccessibilityModal } from "../components/accessibilityModal";
+import { installApp } from "../components/installModal";
+import { canOfferInstall } from "../lib/install";
 
 const UNDO_TIMEOUT_MS = 5000;
 
@@ -350,6 +352,7 @@ export function mountListView(
       ${opts.preview && storedKey ? `<button type="button" role="menuitem" data-action="edit">${icons.edit} Revenir à l'édition</button>` : ""}
       <button type="button" role="menuitem" data-action="theme">${icons.themeAuto} Thème : ${themeLabel(theme)}</button>
       <button type="button" role="menuitem" data-action="a11y">${icons.accessibility} Accessibilité</button>
+      ${canOfferInstall() ? `<button type="button" role="menuitem" data-action="install">${icons.install} Installer l'app</button>` : ""}
     `;
   }
 
@@ -377,6 +380,7 @@ export function mountListView(
     else if (action === "edit") navigate(`/l/${code}`);
     else if (action === "theme") cycleThemePreference();
     else if (action === "a11y") openAccessibilityModal();
+    else if (action === "install") installApp();
   });
   document.addEventListener("click", onDocumentClick);
 

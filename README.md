@@ -25,7 +25,11 @@ données externe), synchronisée en temps réel.
 - **Aperçu invité** : depuis le menu ⋮, voir sa liste exactement comme la
   voient les invités.
 - **Annulation** d'une suppression pendant 5 secondes.
-- Thème clair/sombre/auto, réglages d'accessibilité, installable (PWA).
+- **Installable sur téléphone** (PWA) : bouton « Installer l'app » sur
+  l'accueil et dans le menu ⋮ — invite native sur Android/Chrome, marche à
+  suivre sur iPhone/iPad (Safari → Partager → Sur l'écran d'accueil).
+  L'interface se relance instantanément, même hors ligne.
+- Thème clair/sombre/auto, réglages d'accessibilité.
 
 ## Modèle d'accès
 

@@ -5,6 +5,8 @@ import { icons } from "../lib/icons";
 import { cycleThemePreference, getThemePreference, themeLabel, type ThemePreference } from "../lib/theme";
 import { openAccessibilityModal } from "../components/accessibilityModal";
 import { wireConfirmClick } from "../lib/confirmClick";
+import { canOfferInstall, onInstallAvailabilityChange } from "../lib/install";
+import { installApp } from "../components/installModal";
 
 const THEME_ICON: Record<ThemePreference, string> = { system: icons.themeAuto, light: icons.sun, dark: icons.moon };
 
@@ -38,6 +40,7 @@ export function mountHomeView(root: HTMLElement, navigate: (path: string) => voi
           <div class="logo">${icons.gift}</div>
           <h1>KesKeJeVoeux</h1>
           <p class="tagline">Ma liste de souhaits, à partager en lecture seule.</p>
+          ${canOfferInstall() ? `<button type="button" class="btn install-btn" id="btn-install">${icons.install} Installer l'app sur ce téléphone</button>` : ""}
         </header>
 
         ${
@@ -83,6 +86,7 @@ export function mountHomeView(root: HTMLElement, navigate: (path: string) => voi
       render();
     });
     root.querySelector("#btn-accessibility")?.addEventListener("click", openAccessibilityModal);
+    root.querySelector("#btn-install")?.addEventListener("click", installApp);
 
     root.querySelector("#create-form")?.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -144,5 +148,6 @@ export function mountHomeView(root: HTMLElement, navigate: (path: string) => voi
     });
   }
 
-  return () => {};
+  // L'invite d'installation peut arriver après le premier rendu.
+  return onInstallAvailabilityChange(render);
 }
