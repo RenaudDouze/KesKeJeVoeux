@@ -18,7 +18,7 @@ export default defineConfig({
       // Seul le sous-ensemble de logique pure est testé unitairement ; le
       // code DOM (src/views, src/components, glue réseau/stockage) est
       // couvert par les tests e2e Playwright.
-      include: ["shared/**/*.ts", "worker/**/*.ts", "src/lib/price.ts", "src/lib/editLink.ts"],
+      include: ["shared/**/*.ts", "worker/**/*.ts", "src/lib/price.ts", "src/lib/editLink.ts", "src/lib/imageSize.ts"],
       exclude: [
         "**/*.test.ts",
         "worker/test/**",

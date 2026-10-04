@@ -9,7 +9,8 @@ données externe), synchronisée en temps réel.
 
 - **Une simple liste de souhaits**, sans catégories : chaque souhait a un
   nom, une description, un prix, un lien et une image (photo envoyée, ou
-  adresse d'une image en ligne).
+  adresse d'une image en ligne). Les photos sont redimensionnées et
+  compressées dans le navigateur avant l'envoi (5 Mo max côté serveur).
 - **Total** des prix renseignés.
 - **Réordonnancement** par glisser-déposer (souris et tactile).
 - **Partage en lecture seule** : le lien (ou code, ou QR code) partagé ne

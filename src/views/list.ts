@@ -8,6 +8,7 @@ import { icons } from "../lib/icons";
 import { wireConfirmClick } from "../lib/confirmClick";
 import { enableDragReorder } from "../lib/dnd";
 import { formatPrice, totalPrice } from "../lib/price";
+import { uploadErrorMessage } from "../lib/imageSize";
 import { cycleThemePreference, getThemePreference, themeLabel } from "../lib/theme";
 import { openShareModal } from "../components/shareModal";
 import { openItemModal, type ItemFormResult } from "../components/itemModal";
@@ -16,6 +17,8 @@ import { installApp } from "../components/installModal";
 import { canOfferInstall } from "../lib/install";
 
 const UNDO_TIMEOUT_MS = 5000;
+/** Une erreur reste affichée plus longtemps, et se ferme à la main. */
+const ERROR_TOAST_MS = 12000;
 
 function presenceLabel(count: number): string {
   return count <= 1 ? `${count} personne connectée` : `${count} personnes connectées`;
@@ -72,7 +75,7 @@ export function mountListView(
   let disposeDnd: (() => void) | null = null;
   // Photos choisies pour un souhait tout juste ajouté : envoyées dès que le
   // souhait existe côté serveur (l'upload échouerait silencieusement avant).
-  const pendingUploads = new Map<string, File>();
+  const pendingUploads = new Map<string, Blob>();
   let undoTimer: ReturnType<typeof setTimeout> | null = null;
 
   const conn = new ListConnection(code, editKey);
@@ -243,7 +246,11 @@ export function mountListView(
           imageUrl: result.imageUrl,
           price: result.price ?? undefined,
         });
-        if (result.file) pendingUploads.set(id, result.file);
+        if (result.file) {
+          pendingUploads.set(id, result.file);
+          showToast("Envoi de la photo…", undefined, 0);
+          flushPendingUploads();
+        }
       },
     });
   }
@@ -266,9 +273,11 @@ export function mountListView(
         });
         if (!editKey) return;
         if (result.file) {
-          uploadItemImage(code, id, result.file, editKey).catch((err: Error) => showToast(err.message));
+          sendImage(id, result.file);
         } else if (result.removeUploadedImage) {
-          deleteItemImage(code, id, editKey).catch((err: Error) => showToast(err.message));
+          deleteItemImage(code, id, editKey).catch((err: unknown) =>
+            showToast(err instanceof Error ? err.message : "Impossible de retirer la photo.", undefined, ERROR_TOAST_MS),
+          );
         }
       },
     });
@@ -287,26 +296,43 @@ export function mountListView(
     for (const [id, file] of pendingUploads) {
       if (!findItem(id)) continue;
       pendingUploads.delete(id);
-      uploadItemImage(code, id, file, editKey).catch((err: Error) => showToast(err.message));
+      sendImage(id, file);
     }
+  }
+
+  /** Envoie une photo en signalant toujours le résultat : un échec ne doit
+   * jamais passer inaperçu (sinon le souhait reste simplement sans photo). */
+  function sendImage(id: string, blob: Blob): void {
+    if (!editKey) return;
+    showToast("Envoi de la photo…", undefined, 0);
+    uploadItemImage(code, id, blob, editKey)
+      .then(() => showToast("Photo enregistrée"))
+      .catch((err: unknown) => showToast(uploadErrorMessage(err), undefined, ERROR_TOAST_MS));
   }
 
   // ---------- Toast (erreurs, annulation) ----------
 
-  function showToast(text: string, undo?: () => void): void {
+  /** `durationMs` : 0 = reste affiché jusqu'au prochain message (ex : envoi
+   * en cours). Les erreurs (ERROR_TOAST_MS) ont un bouton de fermeture. */
+  function showToast(text: string, undo?: () => void, durationMs: number = UNDO_TIMEOUT_MS): void {
     document.getElementById("toast")?.remove();
     if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = null;
+    const isError = durationMs === ERROR_TOAST_MS;
     const toast = document.createElement("div");
     toast.id = "toast";
-    toast.className = "toast";
-    toast.setAttribute("role", "status");
-    toast.innerHTML = `<span>${escapeHtml(text)}</span>${undo ? '<button type="button" class="btn small" id="toast-undo">Annuler</button>' : ""}`;
+    toast.className = isError ? "toast toast-error" : "toast";
+    toast.setAttribute("role", isError ? "alert" : "status");
+    toast.innerHTML = `<span>${escapeHtml(text)}</span>${undo ? '<button type="button" class="btn small" id="toast-undo">Annuler</button>' : ""}${
+      isError ? `<button type="button" class="icon-btn" id="toast-close" aria-label="Fermer">${icons.close}</button>` : ""
+    }`;
     document.body.appendChild(toast);
     toast.querySelector("#toast-undo")?.addEventListener("click", () => {
       undo?.();
       toast.remove();
     });
-    undoTimer = setTimeout(() => toast.remove(), UNDO_TIMEOUT_MS);
+    toast.querySelector("#toast-close")?.addEventListener("click", () => toast.remove());
+    if (durationMs > 0) undoTimer = setTimeout(() => toast.remove(), durationMs);
   }
 
   // ---------- Renommage de la liste ----------
