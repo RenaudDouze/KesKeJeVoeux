@@ -17,6 +17,11 @@ données externe), synchronisée en temps réel.
   permet que de consulter la liste. Les invités n'ont aucun moyen de passer
   en mode édition — le serveur refuse toute modification qui ne porte pas
   la clé d'édition, même envoyée à la main sur le WebSocket.
+- **Réservations secrètes** : en mode lecture, un invité peut réserver un
+  souhait (« Je le réserve ») pour éviter les doublons ; les autres invités
+  le voient « Déjà réservé ». Le propriétaire de la liste ne voit jamais les
+  réservations — elles ne lui sont même pas envoyées, y compris dans son
+  aperçu invité. Seul l'appareil qui a réservé peut annuler.
 - **Compteur de personnes connectées** en temps réel, affiché dans
   l'en-tête et dans la bannière du mode lecture.
 - **Mises à jour en direct** : les invités voient les changements

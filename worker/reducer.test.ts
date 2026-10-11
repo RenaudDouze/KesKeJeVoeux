@@ -86,22 +86,22 @@ describe("isValidId", () => {
 
 describe("isAllowedFromClient", () => {
   it("autorise sync à tout le monde", () => {
-    expect(isAllowedFromClient({ type: "sync" }, false)).toBe(true);
-    expect(isAllowedFromClient({ type: "sync" }, true)).toBe(true);
+    expect(isAllowedFromClient({ type: "sync" }, "viewer")).toBe(true);
+    expect(isAllowedFromClient({ type: "sync" }, "editor")).toBe(true);
   });
 
   it("refuse toute modification en lecture seule", () => {
-    expect(isAllowedFromClient({ type: "renameList", name: "x" }, false)).toBe(false);
-    expect(isAllowedFromClient({ type: "addItem", id: "a", name: "x" }, false)).toBe(false);
-    expect(isAllowedFromClient({ type: "deleteItem", id: "a" }, false)).toBe(false);
+    expect(isAllowedFromClient({ type: "renameList", name: "x" }, "viewer")).toBe(false);
+    expect(isAllowedFromClient({ type: "addItem", id: "a", name: "x" }, "viewer")).toBe(false);
+    expect(isAllowedFromClient({ type: "deleteItem", id: "a" }, "viewer")).toBe(false);
   });
 
   it("autorise les modifications à l'éditeur", () => {
-    expect(isAllowedFromClient({ type: "addItem", id: "a", name: "x" }, true)).toBe(true);
+    expect(isAllowedFromClient({ type: "addItem", id: "a", name: "x" }, "editor")).toBe(true);
   });
 
   it("refuse toujours setItemImage venant d'un client, même éditeur", () => {
-    expect(isAllowedFromClient({ type: "setItemImage", id: "a", hasImage: true }, true)).toBe(false);
+    expect(isAllowedFromClient({ type: "setItemImage", id: "a", hasImage: true }, "editor")).toBe(false);
   });
 });
 
@@ -324,5 +324,30 @@ describe("applyMessage", () => {
       applyMessage(full, { type: "restoreItem", item: makeItem({ id: "extra" }) });
       expect(full.items).toHaveLength(MAX_ITEMS_PER_LIST);
     });
+  });
+});
+
+describe("réservations (gérées hors du reducer)", () => {
+  it("seuls les invités peuvent réserver ou annuler (ni l'éditeur, ni son aperçu)", () => {
+    const reserve = { type: "reserveItem", id: "a", token: "t" } as const;
+    const unreserve = { type: "unreserveItem", id: "a", token: "t" } as const;
+    expect(isAllowedFromClient(reserve, "viewer")).toBe(true);
+    expect(isAllowedFromClient(unreserve, "viewer")).toBe(true);
+    expect(isAllowedFromClient(reserve, "editor")).toBe(false);
+    expect(isAllowedFromClient(unreserve, "editor")).toBe(false);
+    expect(isAllowedFromClient(reserve, "preview")).toBe(false);
+  });
+
+  it("l'aperçu du propriétaire est en lecture seule", () => {
+    expect(isAllowedFromClient({ type: "sync" }, "preview")).toBe(true);
+    expect(isAllowedFromClient({ type: "deleteItem", id: "a" }, "preview")).toBe(false);
+  });
+
+  it("applyMessage ne touche pas à l'état pour une réservation", () => {
+    const state = makeState([makeItem()]);
+    const before = structuredClone(state);
+    applyMessage(state, { type: "reserveItem", id: "item-1", token: "t" });
+    applyMessage(state, { type: "unreserveItem", id: "item-1", token: "t" });
+    expect(state).toEqual(before);
   });
 });

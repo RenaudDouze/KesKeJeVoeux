@@ -43,6 +43,10 @@ export interface Item {
    * l'image change et invalide le cache navigateur. */
   hasImage: boolean;
   imageVersion: number;
+  /** Réservé par un invité. Jamais stocké dans l'état : ajouté uniquement à
+   * la vue envoyée aux connexions en lecture seule (voir
+   * worker/reservations.ts). Le propriétaire de la liste ne le reçoit pas. */
+  reserved?: boolean;
 }
 
 export interface ListState {
@@ -78,7 +82,12 @@ export type ClientMessage =
   | { type: "setItemImage"; id: string; hasImage: boolean }
   // Action compensatoire de l'annulation côté client : réinsère exactement
   // le souhait supprimé (même id, même ordre).
-  | { type: "restoreItem"; item: Item };
+  | { type: "restoreItem"; item: Item }
+  // Réservation d'un souhait par un invité (lecture seule uniquement).
+  // `token` : secret aléatoire gardé par l'appareil qui réserve ; seul ce
+  // même jeton permet d'annuler la réservation.
+  | { type: "reserveItem"; id: string; token: string }
+  | { type: "unreserveItem"; id: string; token: string };
 
 export type ServerMessage =
   | { type: "state"; state: ListState }
@@ -88,6 +97,9 @@ export type ServerMessage =
   /** Nombre de personnes actuellement connectées à la liste (tous modes
    * confondus), rediffusé à chaque arrivée/départ. */
   | { type: "presence"; count: number }
+  /** Réponse à l'appareil qui a demandé une (dé)réservation, et à lui seul :
+   * c'est ce qui lui dit si la réservation est bien à lui. */
+  | { type: "reservationResult"; id: string; reserved: boolean; ok: boolean }
   | { type: "error"; message: string };
 
 /** Réponse de POST /api/lists : la clé d'édition n'est renvoyée qu'ici, une
