@@ -40,3 +40,7 @@ Picked photos are never uploaded as-is: `src/lib/prepareImage.ts` decodes them i
 
 - Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`, `src/lib/imageSize.ts`.
 - E2E (Playwright, `e2e/`): everything else (DO glue, views, components). Add client behavior tests there.
+
+## Workflow (owner's standing rule)
+
+No pull request is ever left waiting. For every change: push the branch, open the PR against `main`, wait for CI (all checks green), then squash-merge it yourself — without asking. A red CI is fixed and re-pushed, never left open; a check that is red on `main` too (e.g. a new `npm audit` advisory) is fixed in the same PR. This includes Dependabot PRs: whenever you work on the repo, check for open PRs and merge every green one (verify major version bumps don't change the build output first). The session cannot delete remote branches; tell the owner which merged branches remain.
