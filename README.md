@@ -12,6 +12,9 @@ données externe), synchronisée en temps réel.
   adresse d'une image en ligne). Les photos sont redimensionnées et
   compressées dans le navigateur avant l'envoi (5 Mo max côté serveur).
 - **Total** des prix renseignés.
+- **Tri** pour tout le monde, propriétaire comme invités : « Ordre défini »,
+  « Prix ↑ » ou « Prix ↓ » (souhaits sans prix à la fin). Choix personnel,
+  mémorisé sur l'appareil, sans effet sur l'ordre défini de la liste.
 - **Réordonnancement** par glisser-déposer (souris et tactile).
 - **Partage en lecture seule** : le lien (ou code, ou QR code) partagé ne
   permet que de consulter la liste. Les invités n'ont aucun moyen de passer
