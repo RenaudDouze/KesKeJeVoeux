@@ -465,12 +465,12 @@ a:focus-visible,
   border-color: var(--primary);
 }
 
+/* Dans la colonne d'actions, sous modifier/supprimer : rien à gauche de
+   la photo, qui récupère toute la largeur. */
 .wish-handle {
-  align-self: center;
   cursor: grab;
   touch-action: none;
   color: var(--text-muted);
-  padding: 0.3em 0.1em;
 }
 
 .wish-media {
