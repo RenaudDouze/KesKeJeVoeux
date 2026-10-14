@@ -36,9 +36,13 @@ Picked photos are never uploaded as-is: `src/lib/prepareImage.ts` decodes them i
 
 `vite-plugin-pwa` (manifest + service worker, build only). `src/lib/install.ts` captures `beforeinstallprompt` at boot (`main.ts`) to drive the "Installer l'app" button (home + list menu); on iOS there is no prompt, so `src/components/installModal.ts` shows Safari's manual steps. Nothing is offered when already running standalone. Icons in `public/` (maskable variant keeps the glyph in the 80% safe zone).
 
+## Sorting
+
+Display sort ("Ordre défini" / "Prix ↑" / "Prix ↓") is a per-device preference (`kkjv:sort`, `src/lib/sortPreference.ts`), available to owner and guests alike, never synced and never changing the list's own `order`. `sortItems` (`src/lib/sortItems.ts`) puts unpriced wishes last in both price directions. Drag handles are only rendered in "Ordre défini".
+
 ## Testing
 
-- Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`, `src/lib/imageSize.ts`.
+- Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`, `src/lib/imageSize.ts`, `src/lib/sortItems.ts`.
 - E2E (Playwright, `e2e/`): everything else (DO glue, views, components). Add client behavior tests there.
 
 ## Workflow (owner's standing rule)

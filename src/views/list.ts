@@ -17,6 +17,8 @@ import { icons } from "../lib/icons";
 import { wireConfirmClick } from "../lib/confirmClick";
 import { enableDragReorder } from "../lib/dnd";
 import { formatPrice, totalPrice } from "../lib/price";
+import { sortItems, type SortMode } from "../lib/sortItems";
+import { getSortPreference, setSortPreference } from "../lib/sortPreference";
 import { uploadErrorMessage } from "../lib/imageSize";
 import { cycleThemePreference, getThemePreference, themeLabel } from "../lib/theme";
 import { openShareModal } from "../components/shareModal";
@@ -81,6 +83,9 @@ export function mountListView(
   let loadError = false;
   let dragging = false;
   let renderPending = false;
+  // Tri d'affichage choisi sur cet appareil, propriétaire comme invités
+  // (voir src/lib/sortItems.ts) : ne change jamais l'ordre défini.
+  let sortMode: SortMode = getSortPreference();
   let disposeDnd: (() => void) | null = null;
   // Photos choisies pour un souhait tout juste ajouté : envoyées dès que le
   // souhait existe côté serveur (l'upload échouerait silencieusement avant).
@@ -112,6 +117,12 @@ export function mountListView(
       </header>
       <div class="mode-banner" id="mode-banner" hidden></div>
       <main class="list-main">
+        <div class="sort-bar" id="sort-bar" role="group" aria-label="Trier les souhaits" hidden>
+          <span class="sort-label">Trier :</span>
+          <button type="button" class="sort-btn" data-sort="order">Ordre défini</button>
+          <button type="button" class="sort-btn" data-sort="price-asc" aria-label="Prix croissant">Prix ↑</button>
+          <button type="button" class="sort-btn" data-sort="price-desc" aria-label="Prix décroissant">Prix ↓</button>
+        </div>
         <p class="state-message" id="state-message" hidden></p>
         <ul class="wishes" id="wishes"></ul>
         <p class="total" id="total" hidden></p>
@@ -160,7 +171,13 @@ export function mountListView(
             ? `<div class="wish-actions">
                 <button type="button" class="icon-btn wish-edit" aria-label="Modifier « ${name} »" title="Modifier">${icons.edit}</button>
                 <button type="button" class="icon-btn wish-delete" aria-label="Supprimer « ${name} »" title="Supprimer">${icons.trash}</button>
-                <button type="button" class="icon-btn wish-handle" aria-label="Déplacer « ${name} »" title="Glisser pour déplacer">${icons.gripVertical}</button>
+                ${
+                  // Réorganiser n'a de sens que dans l'ordre défini : masquée
+                  // pendant un tri par prix.
+                  sortMode === "order"
+                    ? `<button type="button" class="icon-btn wish-handle" aria-label="Déplacer « ${name} »" title="Glisser pour déplacer">${icons.gripVertical}</button>`
+                    : ""
+                }
               </div>`
             : ""
         }
@@ -270,7 +287,8 @@ export function mountListView(
           : "Chargement…";
       return;
     }
-    const items = [...state.items].sort((a, b) => a.order - b.order);
+    const items = sortItems(state.items, sortMode);
+    renderSortBar(items.length);
     message.hidden = items.length > 0;
     message.textContent = canEdit ? "Ta liste est vide. Ajoute ton premier souhait !" : "Cette liste est vide pour l'instant.";
     wishesEl.innerHTML = items.map(wishHtml).join("");
@@ -278,6 +296,16 @@ export function mountListView(
     totalEl.hidden = total === null;
     totalEl.textContent = total === null ? "" : `Total : ${formatPrice(total)}`;
     wireItemActions();
+  }
+
+  function renderSortBar(count: number): void {
+    const bar = $<HTMLElement>("#sort-bar");
+    bar.hidden = count < 2;
+    bar.querySelectorAll<HTMLButtonElement>(".sort-btn").forEach((btn) => {
+      const active = btn.dataset.sort === sortMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
   }
 
   function render(): void {
@@ -492,6 +520,13 @@ export function mountListView(
     if (state) openShareModal(code, state.name, canEdit ? editKey : null);
   });
   $("#btn-add").addEventListener("click", addItem);
+  $("#sort-bar").addEventListener("click", (e) => {
+    const mode = (e.target as HTMLElement).closest<HTMLElement>("[data-sort]")?.dataset.sort as SortMode | undefined;
+    if (!mode || mode === sortMode) return;
+    sortMode = mode;
+    setSortPreference(mode);
+    renderItems();
+  });
   root.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest("#list-title")) startRename();
   });
