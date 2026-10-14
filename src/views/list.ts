@@ -135,7 +135,6 @@ export function mountListView(
     const name = escapeHtml(item.name);
     return `
       <li class="wish${showReservations() && item.reserved && !isMine(item) ? " wish-reserved" : ""}" data-id="${escapeHtml(item.id)}">
-        ${canEdit ? `<button type="button" class="wish-handle icon-btn" aria-label="Déplacer « ${name} »" title="Glisser pour déplacer">${icons.gripVertical}</button>` : ""}
         <div class="wish-media">
           ${
             src
@@ -161,6 +160,7 @@ export function mountListView(
             ? `<div class="wish-actions">
                 <button type="button" class="icon-btn wish-edit" aria-label="Modifier « ${name} »" title="Modifier">${icons.edit}</button>
                 <button type="button" class="icon-btn wish-delete" aria-label="Supprimer « ${name} »" title="Supprimer">${icons.trash}</button>
+                <button type="button" class="icon-btn wish-handle" aria-label="Déplacer « ${name} »" title="Glisser pour déplacer">${icons.gripVertical}</button>
               </div>`
             : ""
         }
