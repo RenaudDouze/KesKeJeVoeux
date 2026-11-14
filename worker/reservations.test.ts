@@ -103,3 +103,17 @@ describe("viewForRole", () => {
     expect(s.items[0]).not.toHaveProperty("reserved");
   });
 });
+
+describe("réservations : cas limites", () => {
+  it("n'accepte qu'un jeton de 32 hexadécimaux exactement", () => {
+    expect(isWellFormedToken(TOKEN_A)).toBe(true);
+    expect(isWellFormedToken(`${TOKEN_A}0`)).toBe(false);
+    expect(isWellFormedToken(`0${TOKEN_A}`)).toBe(false);
+    expect(isWellFormedToken([TOKEN_A])).toBe(false);
+  });
+
+  it("réserve un souhait existant parmi plusieurs", async () => {
+    const result = await reserve(state("a", "b"), {}, "a", TOKEN_A);
+    expect(result.ok).toBe(true);
+  });
+});

@@ -53,3 +53,24 @@ describe("clé d'édition", () => {
     expect(await verifyEditKey(key, hash.slice(0, 10))).toBe(false);
   });
 });
+
+describe("isWellFormedEditKey / verifyEditKey : cas limites", () => {
+  const KEY = "0123456789abcdef0123456789abcdef";
+
+  it("exige une chaîne de 32 hexadécimaux exactement (ancrage, type)", () => {
+    expect(isWellFormedEditKey(KEY)).toBe(true);
+    expect(isWellFormedEditKey(`${KEY}!`)).toBe(false);
+    expect(isWellFormedEditKey(`!${KEY}`)).toBe(false);
+    expect(isWellFormedEditKey([KEY])).toBe(false);
+  });
+
+  it("refuse une empreinte qui ne diffère que par un caractère, à n'importe quelle position", async () => {
+    const hash = await hashEditKey(KEY);
+    expect(await verifyEditKey(KEY, hash)).toBe(true);
+    for (const index of [0, hash.length - 1]) {
+      const other = hash[index] === "a" ? "b" : "a";
+      expect(await verifyEditKey(KEY, hash.slice(0, index) + other + hash.slice(index + 1))).toBe(false);
+    }
+    expect(await verifyEditKey(KEY, `${hash}0`)).toBe(false);
+  });
+});

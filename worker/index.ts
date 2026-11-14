@@ -166,12 +166,13 @@ export default {
       if (check.status !== 204) return jsonError("Cette liste est en lecture seule.", 403);
 
       if (request.method === "PUT") {
-        const contentType = request.headers.get("content-type") ?? "";
+        // Absent (null) : jamais dans ALLOWED_IMAGE_TYPES, donc rejeté ci-dessous.
+        const contentType = request.headers.get("content-type") as string;
         if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(contentType)) {
           return jsonError("Format d'image non supporté.", 415);
         }
         // En-tête d'abord (rejet rapide), puis taille réelle une fois lue.
-        const declaredLength = Number(request.headers.get("content-length") ?? "0");
+        const declaredLength = Number(request.headers.get("content-length"));
         if (declaredLength > MAX_IMAGE_BYTES) return jsonError("Image trop volumineuse (5 Mo max).", 413);
         const bytes = await request.arrayBuffer();
         if (bytes.byteLength > MAX_IMAGE_BYTES) return jsonError("Image trop volumineuse (5 Mo max).", 413);

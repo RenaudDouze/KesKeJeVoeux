@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { applyMessage, isAllowedFromClient, isValidId, nextOrder, normalizePrice, normalizeUrl } from "./reducer";
 import type { Item, ListState } from "../shared/types";
-import { MAX_DESCRIPTION_LENGTH, MAX_ITEMS_PER_LIST, MAX_NAME_LENGTH } from "../shared/types";
+import { MAX_DESCRIPTION_LENGTH, MAX_ITEMS_PER_LIST, MAX_NAME_LENGTH, MAX_URL_LENGTH } from "../shared/types";
 
 function makeState(items: Item[] = []): ListState {
   return { code: "ABCDEF", name: "Ma liste", items, createdAt: 1, updatedAt: 1 };
@@ -349,5 +349,56 @@ describe("réservations (gérées hors du reducer)", () => {
     applyMessage(state, { type: "reserveItem", id: "item-1", token: "t" });
     applyMessage(state, { type: "unreserveItem", id: "item-1", token: "t" });
     expect(state).toEqual(before);
+  });
+});
+
+describe("mutation : bornes et champs absents (compléments)", () => {
+  it("normalizeUrl : vide, schéma reconnu seulement en début, longueur plafonnée", () => {
+    expect(normalizeUrl("")).toBe("");
+    expect(normalizeUrl("   ")).toBe("");
+    expect(normalizeUrl("monsite.fr/?u=http:x")).toBe("https://monsite.fr/?u=http:x");
+    const long = `https://exemple.fr/${"x".repeat(MAX_URL_LENGTH)}`;
+    expect(normalizeUrl(long)).toBe(long.slice(0, MAX_URL_LENGTH));
+  });
+
+  it("updateItem : un champ absent ne modifie pas le souhait, un champ fourni le remplace", () => {
+    const state = makeState([
+      makeItem({ id: "a", name: "A", description: "d", link: "https://l.fr/", imageUrl: "https://i.fr/", price: 9 }),
+      makeItem({ id: "b", name: "B", order: 1 }),
+    ]);
+    applyMessage(state, { type: "updateItem", id: "a" }, 5);
+    expect(state.items[0]).toMatchObject({ name: "A", description: "d", link: "https://l.fr/", imageUrl: "https://i.fr/", price: 9, updatedAt: 5 });
+    expect(state.items[1].updatedAt).toBe(1);
+    applyMessage(state, { type: "updateItem", id: "b", name: "B2" }, 6);
+    expect(state.items.map((i) => i.name)).toEqual(["A", "B2"]);
+  });
+
+  it("updateItem : un nom vide ou blanc garde le nom existant, un prix invalide garde le prix existant", () => {
+    const state = makeState([makeItem({ name: "Livre", price: 9 })]);
+    applyMessage(state, { type: "updateItem", id: "item-1", name: "   ", price: -3 }, 5);
+    expect(state.items[0]).toMatchObject({ name: "Livre", price: 9 });
+  });
+
+  it("restoreItem : sans champs optionnels, description/lien/image restent vides", () => {
+    const state = makeState();
+    const minimal = { id: "r1", name: "Vélo", order: 2, createdAt: 3, hasImage: false, imageVersion: 0 } as unknown as Item;
+    applyMessage(state, { type: "restoreItem", item: minimal }, 10);
+    expect(state.items[0]).toMatchObject({ description: "", link: "", imageUrl: "", name: "Vélo" });
+  });
+
+  it("restoreItem : conserve une imageVersion entière positive et ramène le reste à 0", () => {
+    for (const [given, expected] of [[3, 3], [0, 0], [-2, 0], [1.5, 0]] as const) {
+      const state = makeState();
+      applyMessage(state, { type: "restoreItem", item: makeItem({ id: "r1", imageVersion: given }) }, 10);
+      expect(state.items[0].imageVersion).toBe(expected);
+    }
+  });
+});
+
+describe("setItemImage : cible", () => {
+  it("ne modifie que le souhait visé", () => {
+    const state = makeState([makeItem({ id: "a" }), makeItem({ id: "b", order: 1 })]);
+    applyMessage(state, { type: "setItemImage", id: "b", hasImage: true }, 9);
+    expect(state.items.map((i) => [i.hasImage, i.imageVersion])).toEqual([[false, 0], [true, 1]]);
   });
 });

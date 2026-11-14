@@ -1,7 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { encryptJson, decryptJson } from "./crypto";
 
 describe("encryptJson / decryptJson", () => {
+  it("dérive une clé non exportable, limitée à chiffrer/déchiffrer", async () => {
+    const spy = vi.spyOn(crypto.subtle, "importKey");
+    await encryptJson("CODE01", { x: 1 });
+    expect(spy).toHaveBeenCalledWith("raw", expect.anything(), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+    spy.mockRestore();
+  });
+
   it("fait un aller-retour fidèle sur une valeur quelconque (objet imbriqué)", async () => {
     const value = { code: "ABC123", items: [{ name: "Lait", checked: false }], count: 2 };
     const payload = await encryptJson("ABC123", value);
