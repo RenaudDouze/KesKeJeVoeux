@@ -15,7 +15,7 @@ export function nextOrder(list: { order: number }[]): number {
 export function normalizeUrl(raw: unknown): string {
   if (typeof raw !== "string") return "";
   const trimmed = raw.trim().slice(0, MAX_URL_LENGTH);
-  if (!trimmed) return "";
+  // Vide : "https://" n'est pas une URL valide, le try/catch ci-dessous renvoie "".
   const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
     const url = new URL(candidate);
@@ -29,8 +29,9 @@ export function normalizeUrl(raw: unknown): string {
  * undefined pour une valeur invalide, pour laisser le prix existant intact
  * plutôt que de l'écraser. */
 export function normalizePrice(price: unknown): number | undefined {
-  if (typeof price !== "number" || !Number.isFinite(price) || price < 0) return undefined;
-  return Math.round(price * 100) / 100;
+  // Number.isFinite rejette déjà tout ce qui n'est pas un nombre.
+  if (!Number.isFinite(price) || (price as number) < 0) return undefined;
+  return Math.round((price as number) * 100) / 100;
 }
 
 function normalizeText(raw: unknown, max: number): string {
@@ -44,16 +45,16 @@ export function isValidId(id: unknown): id is string {
 }
 
 function applyFields(item: Item, fields: ItemFields): void {
-  if (fields.name !== undefined) {
-    const name = normalizeText(fields.name, MAX_NAME_LENGTH);
-    if (name) item.name = name;
-  }
+  // Un nom absent (undefined) devient "" et laisse le nom existant en place.
+  const name = normalizeText(fields.name, MAX_NAME_LENGTH);
+  if (name) item.name = name;
   if (fields.description !== undefined) item.description = normalizeText(fields.description, MAX_DESCRIPTION_LENGTH);
   if (fields.link !== undefined) item.link = normalizeUrl(fields.link);
   if (fields.imageUrl !== undefined) item.imageUrl = normalizeUrl(fields.imageUrl);
   if (fields.price === null) {
     delete item.price;
-  } else if (fields.price !== undefined) {
+  } else {
+    // Un prix absent (undefined) n'est pas valide : le prix existant reste.
     const price = normalizePrice(fields.price);
     if (price !== undefined) item.price = price;
   }
@@ -81,8 +82,9 @@ export function isAllowedFromClient(msg: ClientMessage, role: Role): boolean {
 /** Applique un message en modifiant `state` sur place. */
 export function applyMessage(state: ListState, msg: ClientMessage, now: number = Date.now()): void {
   switch (msg.type) {
-    case "sync":
-      return;
+    // "sync", "reserveItem" et "unreserveItem" ne modifient pas l'état de la
+    // liste (les réservations sont gérées à part, voir worker/reservations.ts) :
+    // aucun `case`, un type non traité sort du switch sans effet.
 
     case "renameList": {
       const name = normalizeText(msg.name, MAX_NAME_LENGTH);
@@ -144,12 +146,6 @@ export function applyMessage(state: ListState, msg: ClientMessage, now: number =
       return;
     }
 
-    // Gérés à part (worker/reservations.ts) : ils ne modifient pas l'état
-    // de la liste lui-même, seulement les réservations, stockées ailleurs.
-    case "reserveItem":
-    case "unreserveItem":
-      return;
-
     case "restoreItem": {
       const source = msg.item;
       if (!source || !isValidId(source.id) || state.items.some((i) => i.id === source.id)) return;
@@ -167,7 +163,7 @@ export function applyMessage(state: ListState, msg: ClientMessage, now: number =
         createdAt: Number.isFinite(source.createdAt) ? source.createdAt : now,
         updatedAt: now,
         hasImage: source.hasImage === true,
-        imageVersion: Number.isInteger(source.imageVersion) && source.imageVersion >= 0 ? source.imageVersion : 0,
+        imageVersion: Number.isInteger(source.imageVersion) ? Math.max(0, source.imageVersion) : 0,
       };
       applyFields(item, {
         description: source.description,

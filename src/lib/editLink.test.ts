@@ -21,3 +21,14 @@ it("construit les liens de lecture et d'édition", () => {
   expect(editUrl("https://a.fr", "/l/ABCDEF", KEY)).toBe(`https://a.fr/l/ABCDEF#cle=${KEY}`);
   expect(editKeyFromHash(new URL(editUrl("https://a.fr", "/l/ABCDEF", KEY)).hash)).toBe(KEY);
 });
+
+describe("editKeyFromHash : cas limites", () => {
+  it("ne retire que le # de tête du fragment", () => {
+    expect(editKeyFromHash(`x=1&#cle=${KEY}`)).toBeNull();
+  });
+  it("exige exactement 32 caractères hexadécimaux, sans rien avant ni après", () => {
+    expect(editKeyFromHash(`#cle=${KEY}!`)).toBeNull();
+    expect(editKeyFromHash(`#cle=!${KEY}`)).toBeNull();
+    expect(editKeyFromHash(`#cle=${KEY}0`)).toBeNull();
+  });
+});

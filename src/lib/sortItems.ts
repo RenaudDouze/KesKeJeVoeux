@@ -5,7 +5,7 @@ export type SortMode = "order" | "price-asc" | "price-desc";
 export const SORT_MODES: readonly SortMode[] = ["order", "price-asc", "price-desc"];
 
 export function isSortMode(value: unknown): value is SortMode {
-  return typeof value === "string" && (SORT_MODES as readonly string[]).includes(value);
+  return (SORT_MODES as readonly unknown[]).includes(value);
 }
 
 /** Trie sans modifier le tableau reçu. Par prix, les souhaits sans prix
@@ -14,11 +14,10 @@ export function isSortMode(value: unknown): value is SortMode {
 export function sortItems<T extends { order: number; price?: number }>(items: readonly T[], mode: SortMode): T[] {
   const byOrder = [...items].sort((a, b) => a.order - b.order);
   if (mode === "order") return byOrder;
-  const direction = mode === "price-asc" ? 1 : -1;
-  return byOrder.sort((a, b) => {
-    if (a.price === undefined || b.price === undefined) {
-      return (a.price === undefined ? 1 : 0) - (b.price === undefined ? 1 : 0);
-    }
-    return (a.price - b.price) * direction;
-  });
+  // Les souhaits sans prix sont écartés avant le tri puis remis à la fin : un
+  // comparateur qui mélange prix présents et absents serait incohérent.
+  const priced = byOrder.filter((item) => item.price !== undefined);
+  const unpriced = byOrder.filter((item) => item.price === undefined);
+  priced.sort((a, b) => (mode === "price-asc" ? (a.price as number) - (b.price as number) : (b.price as number) - (a.price as number)));
+  return [...priced, ...unpriced];
 }

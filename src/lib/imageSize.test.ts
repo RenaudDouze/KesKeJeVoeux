@@ -33,3 +33,11 @@ describe("uploadErrorMessage", () => {
     expect(uploadErrorMessage("??")).toBe("Photo non enregistrée.");
   });
 });
+
+describe("fitWithin : dimensions nulles", () => {
+  it("renvoie 0 x 0 dès qu'un côté est nul ou négatif", () => {
+    expect(fitWithin(100, 0)).toEqual({ width: 0, height: 0 });
+    expect(fitWithin(0, 100)).toEqual({ width: 0, height: 0 });
+    expect(fitWithin(100, -1)).toEqual({ width: 0, height: 0 });
+  });
+});

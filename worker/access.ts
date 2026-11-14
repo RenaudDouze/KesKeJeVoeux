@@ -48,7 +48,6 @@ export async function verifyEditKey(key: unknown, storedHash: string | null | un
   const hash = await hashEditKey(key);
   // Comparaison à temps constant, par principe (les deux chaînes ont
   // toujours la même longueur : deux empreintes SHA-256 en hexadécimal).
-  let diff = hash.length ^ storedHash.length;
-  for (let i = 0; i < hash.length; i++) diff |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i);
+  const diff = Array.from(hash).reduce((acc, char, i) => acc | (char.charCodeAt(0) ^ storedHash.charCodeAt(i)), hash.length ^ storedHash.length);
   return diff === 0;
 }
