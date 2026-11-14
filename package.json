@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:mutation": "stryker run",
     "test:e2e": "playwright test",
     "cf-typegen": "wrangler types"
   },
@@ -23,6 +24,7 @@
     "@cloudflare/vite-plugin": "^1.66.0",
     "@cloudflare/workers-types": "^5.20261101.1",
     "@playwright/test": "^1.64.1",
+    "@stryker-mutator/core": "^10.1.1",
     "@types/qrcode": "^1.5.6",
     "@vitest/coverage-v8": "^5.0.5",
     "oxlint": "^1.90.0",

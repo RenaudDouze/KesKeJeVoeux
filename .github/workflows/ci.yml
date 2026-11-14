@@ -75,6 +75,24 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
+  mutation-testing:
+    name: Mutation testing (logique pure)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:mutation
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: mutation-report/
+          retention-days: 14
+
   audit:
     name: Audit des dépendances
     runs-on: ubuntu-latest
@@ -89,7 +107,7 @@ jobs:
 
   build:
     name: Build de production
-    needs: [lint, typecheck, unit-tests, e2e-tests]
+    needs: [lint, typecheck, unit-tests, e2e-tests, mutation-testing]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

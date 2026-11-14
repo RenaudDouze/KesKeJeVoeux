@@ -43,6 +43,7 @@ Display sort ("Ordre défini" / "Prix ↑" / "Prix ↓") is a per-device prefere
 ## Testing
 
 - Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`, `src/lib/imageSize.ts`, `src/lib/sortItems.ts`.
+- Mutation (Stryker, `npm run test:mutation`, `stryker.config.mjs`): same pure-logic scope minus `types.ts`/`listRoom.ts`; `break` threshold 80. Uses the `command` runner (the Vitest runner runs ~no tests per mutant) and a missing `tsconfigFile` (Stryker's tsconfig preprocessor crashes on TypeScript 7). The test file list in `commandRunner.command` must stay in sync with `mutate`: a new pure module adds its test file to both.
 - E2E (Playwright, `e2e/`): everything else (DO glue, views, components). Add client behavior tests there.
 
 ## Workflow (owner's standing rule)
