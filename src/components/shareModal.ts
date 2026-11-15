@@ -40,8 +40,9 @@ export function openShareModal(code: string, listName: string, editKey: string |
   document.body.appendChild(overlay);
 
   renderQrSvg(shareUrl).then((svg) => {
-    const wrap = overlay.querySelector("#qr-wrap");
-    if (wrap) wrap.innerHTML = svg;
+    // Gabarit statique ci-dessus : toujours présent, que la modale soit
+    // encore affichée ou déjà détachée du document.
+    overlay.querySelector("#qr-wrap")!.innerHTML = svg;
   });
 
   const releaseFocusTrap = trapFocus(overlay.querySelector(".modal") as HTMLElement);
@@ -58,15 +59,15 @@ export function openShareModal(code: string, listName: string, editKey: string |
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) close();
   });
-  overlay.querySelector(".modal-close")?.addEventListener("click", close);
+  overlay.querySelector(".modal-close")!.addEventListener("click", close);
 
-  overlay.querySelector("#copy-link")?.addEventListener("click", async () => {
+  overlay.querySelector("#copy-link")!.addEventListener("click", async () => {
     await copyText(shareUrl);
     flash(overlay, "#copy-link", "Copié !");
   });
   overlay.querySelector("#copy-edit-link")?.addEventListener("click", async () => {
-    if (!editKey) return;
-    await copyText(editUrl(location.origin, listPath, editKey));
+    // Le bouton n'existe que si editKey est défini (voir le gabarit).
+    await copyText(editUrl(location.origin, listPath, editKey!));
     flash(overlay, "#copy-edit-link", "Copié !");
   });
   overlay.querySelector("#native-share")?.addEventListener("click", async () => {
@@ -87,8 +88,8 @@ async function copyText(text: string): Promise<void> {
 }
 
 function flash(root: HTMLElement, selector: string, text: string): void {
-  const el = root.querySelector(selector) as HTMLElement | null;
-  if (!el) return;
+  // Toujours appelée avec un sélecteur du gabarit statique de la modale.
+  const el = root.querySelector(selector) as HTMLElement;
   const original = el.textContent;
   el.textContent = text;
   setTimeout(() => {

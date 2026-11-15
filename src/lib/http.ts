@@ -29,9 +29,14 @@ export function itemImageUrl(code: string, itemId: string, version: number): str
   return apiUrl(`${itemImagePath(code, itemId)}?v=${version}`);
 }
 
-async function errorFrom(res: Response, fallback: string): Promise<Error> {
-  const body: { error?: string } | null = await res.json().catch(() => null);
-  return new Error(body?.error || fallback);
+/** Message d'erreur renvoyé par le serveur (`{ error }`), ou `fallback` si la
+ * réponse n'est pas du JSON ou n'en contient pas. */
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+  const message: string | undefined = await res.json().then(
+    (body: { error?: string }) => body.error,
+    () => undefined,
+  );
+  return message || fallback;
 }
 
 export async function uploadItemImage(code: string, itemId: string, file: Blob, editKey: string): Promise<void> {
@@ -40,7 +45,7 @@ export async function uploadItemImage(code: string, itemId: string, file: Blob, 
     headers: { "content-type": file.type, [EDIT_KEY_HEADER]: editKey },
     body: file,
   });
-  if (!res.ok) throw await errorFrom(res, "Impossible d'envoyer l'image.");
+  if (!res.ok) throw new Error(await errorMessage(res, "Impossible d'envoyer l'image."));
 }
 
 export async function deleteItemImage(code: string, itemId: string, editKey: string): Promise<void> {
@@ -48,5 +53,5 @@ export async function deleteItemImage(code: string, itemId: string, editKey: str
     method: "DELETE",
     headers: { [EDIT_KEY_HEADER]: editKey },
   });
-  if (!res.ok) throw await errorFrom(res, "Impossible de supprimer l'image.");
+  if (!res.ok) throw new Error(await errorMessage(res, "Impossible de supprimer l'image."));
 }

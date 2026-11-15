@@ -95,7 +95,7 @@ export function openItemModal(opts: ItemModalOptions): void {
   const submitBtn = $<HTMLButtonElement>("#item-form button[type=submit]");
 
   function renderPreview(): void {
-    const src = filePreviewUrl ?? uploadedSrc ?? (imageUrlInput.value.trim() || null);
+    const src = filePreviewUrl ?? uploadedSrc ?? (imageUrlInput.value || null);
     preview.innerHTML = src ? `<img src="${escapeHtml(src)}" alt="" />` : "";
     preview.hidden = !src;
     removeBtn.hidden = !(filePreviewUrl || uploadedSrc);
@@ -117,7 +117,7 @@ export function openItemModal(opts: ItemModalOptions): void {
   }
 
   fileInput.addEventListener("change", async () => {
-    const picked = fileInput.files?.[0];
+    const picked = fileInput.files![0];
     fileInput.value = "";
     if (!picked) return;
     imageErrorEl.hidden = true;
@@ -144,7 +144,9 @@ export function openItemModal(opts: ItemModalOptions): void {
       URL.revokeObjectURL(filePreviewUrl);
       filePreviewUrl = null;
       file = null;
-    } else if (uploadedSrc) {
+    } else {
+      // Le bouton « Retirer » n'est visible que s'il y a une photo choisie ou
+      // déjà envoyée : ici, c'est donc la photo déjà envoyée.
       uploadedSrc = null;
       removeUploadedImage = true;
     }
@@ -189,8 +191,9 @@ export function openItemModal(opts: ItemModalOptions): void {
     const result: ItemFormResult = {
       name,
       description: $<HTMLTextAreaElement>("#item-description").value.trim(),
-      link: $<HTMLInputElement>("#item-link").value.trim(),
-      imageUrl: imageUrlInput.value.trim(),
+      // type=url : le navigateur retire déjà les espaces autour de la valeur.
+      link: $<HTMLInputElement>("#item-link").value,
+      imageUrl: imageUrlInput.value,
       price,
       file,
       removeUploadedImage,
