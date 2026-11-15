@@ -43,7 +43,7 @@ Display sort ("Ordre défini" / "Prix ↑" / "Prix ↓") is a per-device prefere
 ## Testing
 
 - Unit (Vitest, 100% enforced): `shared/**` (except type-only `types.ts`), `worker/**` (except `listRoom.ts`), `src/lib/price.ts`, `src/lib/editLink.ts`, `src/lib/imageSize.ts`, `src/lib/sortItems.ts`.
-- Mutation (Stryker, `npm run test:mutation`, `stryker.config.mjs`): same pure-logic scope minus `types.ts`/`listRoom.ts`; `high`/`low`/`break` thresholds all at 100. An equivalent mutant is handled by simplifying the code (redundant guard, dead default), never by lowering the threshold. Uses the `command` runner (the Vitest runner runs ~no tests per mutant) and a missing `tsconfigFile` (Stryker's tsconfig preprocessor crashes on TypeScript 7). The test file list in `commandRunner.command` must stay in sync with `mutate`: a new pure module adds its test file to both.
+- Mutation (Stryker, `npm run test:mutation`, `stryker.config.mjs`): same pure-logic scope minus `types.ts`/`listRoom.ts`; `high`/`low`/`break` thresholds all at 100. An equivalent mutant is handled by simplifying the code (redundant guard, dead default), never by lowering the threshold. Uses the `command` runner (the Vitest runner runs ~no tests per mutant) and a missing `tsconfigFile` (Stryker's tsconfig preprocessor crashes on TypeScript 7). `targets` (top of the config) maps each module to the only test files run per mutant; CI runs one job per module (matrix from `.github/scripts/mutation-matrix.mjs`), and `MUTATE=worker/reducer.ts npm run test:mutation` mutates a single module. A new pure module must be added to `targets` with its test file.
 - E2E (Playwright, `e2e/`): everything else (DO glue, views, components). Add client behavior tests there.
 
 ## Workflow (owner's standing rule)
