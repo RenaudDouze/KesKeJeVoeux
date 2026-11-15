@@ -90,7 +90,6 @@ export function mountListView(
   // Photos choisies pour un souhait tout juste ajouté : envoyées dès que le
   // souhait existe côté serveur (l'upload échouerait silencieusement avant).
   const pendingUploads = new Map<string, Blob>();
-  let undoTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Aperçu du propriétaire : la clé est envoyée avec ?preview=1 pour que le
   // serveur lui cache les réservations (voir worker/reservations.ts).
@@ -316,25 +315,22 @@ export function mountListView(
   // ---------- Actions sur les souhaits ----------
 
   function findItem(id: string): Item | undefined {
-    return state?.items.find((i) => i.id === id);
+    return state!.items.find((i) => i.id === id);
   }
 
   function wireItemActions(): void {
     wishesEl.querySelectorAll<HTMLElement>(".wish").forEach((li) => {
       const id = li.dataset.id!;
       li.querySelector(".wish-image-btn")?.addEventListener("click", () => {
-        const item = findItem(id);
-        const src = item && imageSrc(item);
-        if (item && src) openImageLightbox(src, item.name);
+        // Le bouton n'existe que pour un souhait qui a une image.
+        const item = findItem(id)!;
+        openImageLightbox(imageSrc(item)!, item.name);
       });
       li.querySelector(".reserve-btn")?.addEventListener("click", () => reserve(id));
       li.querySelector(".unreserve-btn")?.addEventListener("click", () => unreserve(id));
       if (!canEdit) return;
-      li.querySelector(".wish-edit")?.addEventListener("click", () => editItem(id));
-      const del = li.querySelector<HTMLButtonElement>(".wish-delete");
-      if (del) {
-        wireConfirmClick(del, { armedLabel: "Confirmer la suppression", onConfirm: () => deleteItem(id) });
-      }
+      li.querySelector(".wish-edit")!.addEventListener("click", () => editItem(id));
+      wireConfirmClick(li.querySelector<HTMLButtonElement>(".wish-delete")!, { armedLabel: "Confirmer la suppression", onConfirm: () => deleteItem(id) });
     });
   }
 
@@ -352,9 +348,9 @@ export function mountListView(
           price: result.price ?? undefined,
         });
         if (result.file) {
+          // Envoyée dès que le souhait apparaît dans l'état (voir onState).
           pendingUploads.set(id, result.file);
           showToast("Envoi de la photo…", undefined, 0);
-          flushPendingUploads();
         }
       },
     });
@@ -408,9 +404,10 @@ export function mountListView(
   /** Envoie une photo en signalant toujours le résultat : un échec ne doit
    * jamais passer inaperçu (sinon le souhait reste simplement sans photo). */
   function sendImage(id: string, blob: Blob): void {
-    if (!editKey) return;
+    // Appelée seulement après avoir vérifié editKey (voir editItem et
+    // flushPendingUploads).
     showToast("Envoi de la photo…", undefined, 0);
-    uploadItemImage(code, id, blob, editKey)
+    uploadItemImage(code, id, blob, editKey!)
       .then(() => showToast("Photo enregistrée"))
       .catch((err: unknown) => showToast(uploadErrorMessage(err), undefined, ERROR_TOAST_MS));
   }
@@ -421,8 +418,6 @@ export function mountListView(
    * en cours). Les erreurs (ERROR_TOAST_MS) ont un bouton de fermeture. */
   function showToast(text: string, undo?: () => void, durationMs: number = UNDO_TIMEOUT_MS): void {
     document.getElementById("toast")?.remove();
-    if (undoTimer) clearTimeout(undoTimer);
-    undoTimer = null;
     const isError = durationMs === ERROR_TOAST_MS;
     const toast = document.createElement("div");
     toast.id = "toast";
@@ -433,11 +428,14 @@ export function mountListView(
     }`;
     document.body.appendChild(toast);
     toast.querySelector("#toast-undo")?.addEventListener("click", () => {
-      undo?.();
+      // Le bouton n'existe que si une annulation est fournie.
+      undo!();
       toast.remove();
     });
     toast.querySelector("#toast-close")?.addEventListener("click", () => toast.remove());
-    if (durationMs > 0) undoTimer = setTimeout(() => toast.remove(), durationMs);
+    // Le minuteur d'un ancien message ne retire que l'ancien élément (déjà
+    // remplacé ci-dessus) : inutile de l'annuler.
+    if (durationMs > 0) setTimeout(() => toast.remove(), durationMs);
   }
 
   // ---------- Renommage de la liste ----------
@@ -454,14 +452,16 @@ export function mountListView(
     title.replaceWith(input);
     input.focus();
     input.select();
+    // Retirer le champ du document déclenche un blur dans les navigateurs :
+    // sans ce verrou, Échap validerait quand même la saisie.
     let done = false;
     const finish = (commit: boolean) => {
       if (done) return;
       done = true;
       const name = input.value.trim();
       input.replaceWith(title);
-      if (commit && name && state && name !== state.name) {
-        state.name = name;
+      if (commit && name && name !== state!.name) {
+        state!.name = name;
         conn.send({ type: "renameList", name });
       }
       renderHeader();
@@ -511,13 +511,14 @@ export function mountListView(
     else if (action === "edit") navigate(`/l/${code}`);
     else if (action === "theme") cycleThemePreference();
     else if (action === "a11y") openAccessibilityModal();
-    else if (action === "install") installApp();
+    else installApp();
   });
   document.addEventListener("click", onDocumentClick);
 
   $("#btn-back").addEventListener("click", () => navigate("/"));
   $("#btn-share").addEventListener("click", () => {
-    if (state) openShareModal(code, state.name, canEdit ? editKey : null);
+    // Le bouton est masqué tant que la liste n'est pas chargée (voir renderHeader).
+    openShareModal(code, state!.name, canEdit ? editKey : null);
   });
   $("#btn-add").addEventListener("click", addItem);
   $("#sort-bar").addEventListener("click", (e) => {
@@ -545,8 +546,11 @@ export function mountListView(
       onDrop: () => {
         dragging = false;
         const orderedIds = Array.from(wishesEl.querySelectorAll<HTMLElement>(".wish")).map((el) => el.dataset.id!);
-        if (state) {
-          for (const item of state.items) item.order = orderedIds.indexOf(item.id);
+        for (const item of state!.items) {
+          // Un souhait arrivé pendant le glisser n'est pas encore dans le
+          // DOM : il garde son ordre (sinon indexOf le placerait en tête).
+          const index = orderedIds.indexOf(item.id);
+          if (index !== -1) item.order = index;
         }
         conn.send({ type: "reorderItems", orderedIds });
         if (renderPending) {
@@ -565,7 +569,6 @@ export function mountListView(
   const unsubs = [
     conn.onState((next) => {
       state = next;
-      notFound = false;
       cacheListState(next);
       touchRecentList(next.code, next.name);
       if (showReservations()) pruneReservationTokens(next);
@@ -615,7 +618,8 @@ export function mountListView(
       conn.connect();
     })
     .catch(() => {
-      loadError = state === null;
+      // Sans effet si une liste en cache est déjà affichée (voir renderItems).
+      loadError = true;
       render();
       // Hors ligne : on tente quand même la connexion (reconnexion auto).
       conn.connect();
@@ -626,7 +630,6 @@ export function mountListView(
     conn.disconnect();
     disposeDnd?.();
     document.removeEventListener("click", onDocumentClick);
-    if (undoTimer) clearTimeout(undoTimer);
     document.getElementById("toast")?.remove();
   };
 }

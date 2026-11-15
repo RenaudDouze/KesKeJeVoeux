@@ -37,6 +37,6 @@ function openIosInstructions(): void {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) close();
   });
-  overlay.querySelector(".modal-close")?.addEventListener("click", close);
-  overlay.querySelector("#install-ok")?.addEventListener("click", close);
+  overlay.querySelector(".modal-close")!.addEventListener("click", close);
+  overlay.querySelector("#install-ok")!.addEventListener("click", close);
 }

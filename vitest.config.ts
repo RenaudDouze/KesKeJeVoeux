@@ -15,10 +15,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
-      // Seul le sous-ensemble de logique pure est testé unitairement ; le
-      // code DOM (src/views, src/components, glue réseau/stockage) est
-      // couvert par les tests e2e Playwright.
-      include: ["shared/**/*.ts", "worker/**/*.ts", "src/lib/price.ts", "src/lib/editLink.ts", "src/lib/imageSize.ts", "src/lib/sortItems.ts"],
+      // Tout src/ (logique, vues et composants DOM sous jsdom) : chaque
+      // fichier de test déclare son environnement via `@vitest-environment`.
+      include: ["shared/**/*.ts", "worker/**/*.ts", "src/**/*.ts"],
       exclude: [
         "**/*.test.ts",
         "worker/test/**",

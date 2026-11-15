@@ -81,14 +81,14 @@ export function mountHomeView(root: HTMLElement, navigate: (path: string) => voi
       </div>
     `;
 
-    root.querySelector("#theme-toggle")?.addEventListener("click", () => {
+    root.querySelector("#theme-toggle")!.addEventListener("click", () => {
       cycleThemePreference();
       render();
     });
-    root.querySelector("#btn-accessibility")?.addEventListener("click", openAccessibilityModal);
+    root.querySelector("#btn-accessibility")!.addEventListener("click", openAccessibilityModal);
     root.querySelector("#btn-install")?.addEventListener("click", installApp);
 
-    root.querySelector("#create-form")?.addEventListener("submit", async (e) => {
+    root.querySelector("#create-form")!.addEventListener("submit", async (e) => {
       e.preventDefault();
       const nameInput = root.querySelector("#create-name") as HTMLInputElement;
       const btn = (e.target as HTMLFormElement).querySelector("button") as HTMLButtonElement;
@@ -104,7 +104,7 @@ export function mountHomeView(root: HTMLElement, navigate: (path: string) => voi
       }
     });
 
-    root.querySelector("#join-form")?.addEventListener("submit", async (e) => {
+    root.querySelector("#join-form")!.addEventListener("submit", async (e) => {
       e.preventDefault();
       const input = root.querySelector("#join-code") as HTMLInputElement;
       const errorEl = root.querySelector("#join-error") as HTMLElement;

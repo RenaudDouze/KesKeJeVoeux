@@ -12,9 +12,9 @@ const CACHE_PREFIX = "kkjv:cache:";
 const MAX_RECENT = 20;
 
 function safeParse<T>(raw: string | null): T | null {
-  if (!raw) return null;
   try {
-    return JSON.parse(raw) as T;
+    // `null` (rien de stocké) donne `null` ; une chaîne vide lève : null aussi.
+    return JSON.parse(raw as string) as T;
   } catch {
     return null;
   }
@@ -29,11 +29,13 @@ function safeSet(key: string, value: unknown): void {
 }
 
 function safeGet(key: string): string | null {
+  let value: string | null = null;
   try {
-    return localStorage.getItem(key);
+    value = localStorage.getItem(key);
   } catch {
-    return null;
+    // stockage indisponible : comme une valeur absente
   }
+  return value;
 }
 
 export function getRecentLists(): RecentList[] {

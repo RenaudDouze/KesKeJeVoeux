@@ -43,13 +43,12 @@ const UNREADABLE =
 
 async function decode(file: File): Promise<Decoded> {
   // createImageBitmap applique l'orientation EXIF (photo prise en portrait).
-  if ("createImageBitmap" in window) {
-    try {
-      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-      return { image: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
-    } catch {
-      // Repli sur <img> ci-dessous (certains Safari décodent HEIC ainsi).
-    }
+  // Absent (très vieux navigateur) : l'appel lève aussi, d'où le même repli.
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    return { image: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
+  } catch {
+    // Repli sur <img> ci-dessous (certains Safari décodent HEIC ainsi).
   }
   const url = URL.createObjectURL(file);
   try {
