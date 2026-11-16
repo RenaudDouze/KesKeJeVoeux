@@ -20,6 +20,18 @@ vi.mock("./views/home", () => ({ mountHomeView: (...a: Parameters<typeof mountHo
 vi.mock("./views/list", () => ({ mountListView: (...a: Parameters<typeof mountListView>) => mountListView(...a) }));
 vi.mock("./lib/install", () => ({ initInstallPrompt: () => initInstallPrompt() }));
 
+// Enregistrement du service worker et bandeaux PWA : remplacés par des espions
+// (le module « virtual:pwa-register » n'existe que dans un build Vite).
+const applyUpdate = vi.fn(async () => {});
+const registerSW = vi.fn((_options: { onNeedRefresh: () => void }) => applyUpdate);
+const showUpdateBanner = vi.fn();
+const watchOffline = vi.fn();
+vi.mock("virtual:pwa-register", () => ({ registerSW: (...a: Parameters<typeof registerSW>) => registerSW(...a) }));
+vi.mock("./components/pwaBanner", () => ({
+  showUpdateBanner: (...a: Parameters<typeof showUpdateBanner>) => showUpdateBanner(...a),
+  watchOffline: () => watchOffline(),
+}));
+
 // main.ts est un point d'entrée à effets de bord : chaque test le ré-importe à
 // neuf (resetModules) et retire l'écouteur popstate qu'il a posé sur window.
 const popstateListeners: EventListener[] = [];
@@ -40,6 +52,10 @@ async function editKeyOf(code: string): Promise<string | null> {
 
 describe("main (bootstrap applicatif)", () => {
   beforeEach(() => {
+    registerSW.mockClear();
+    applyUpdate.mockClear();
+    showUpdateBanner.mockClear();
+    watchOffline.mockClear();
     localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
     document.documentElement.removeAttribute("data-large-text");
@@ -173,6 +189,29 @@ describe("main (bootstrap applicatif)", () => {
       window.dispatchEvent(new PopStateEvent("popstate"));
       expect(cleanupHome).toHaveBeenCalledOnce();
       expect(mountListView).toHaveBeenCalledWith(app, "ZZZZZZ", { preview: false }, expect.any(Function));
+    });
+  });
+
+  describe("PWA", () => {
+    it("surveille l'état hors ligne au démarrage", async () => {
+      await boot("/");
+      expect(watchOffline).toHaveBeenCalledTimes(1);
+    });
+
+    it("enregistre le service worker et annonce une nouvelle version sans recharger", async () => {
+      await boot("/");
+      expect(registerSW).toHaveBeenCalledTimes(1);
+      expect(showUpdateBanner).not.toHaveBeenCalled();
+      registerSW.mock.calls[0][0].onNeedRefresh();
+      expect(showUpdateBanner).toHaveBeenCalledTimes(1);
+      expect(applyUpdate).not.toHaveBeenCalled();
+    });
+
+    it("recharge avec la nouvelle version quand l'utilisateur accepte", async () => {
+      await boot("/");
+      registerSW.mock.calls[0][0].onNeedRefresh();
+      (showUpdateBanner.mock.calls[0][0] as () => void)();
+      expect(applyUpdate).toHaveBeenCalledWith(true);
     });
   });
 });

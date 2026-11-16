@@ -6,6 +6,8 @@ export default defineConfig({
     alias: {
       // Voir worker/test/cloudflareWorkersShim.ts.
       "cloudflare:workers": path.resolve(import.meta.dirname, "worker/test/cloudflareWorkersShim.ts"),
+      // Voir src/test/pwaRegisterShim.ts.
+      "virtual:pwa-register": path.resolve(import.meta.dirname, "src/test/pwaRegisterShim.ts"),
     },
   },
   test: {
@@ -21,6 +23,7 @@ export default defineConfig({
       exclude: [
         "**/*.test.ts",
         "worker/test/**",
+        "src/test/**",
         // Fichier de types uniquement.
         "shared/types.ts",
         // Glue du Durable Object (stockage, hibernation WebSocket) : vérifiée
