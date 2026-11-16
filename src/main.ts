@@ -7,6 +7,9 @@ import { appPath, routePath } from "./lib/basePath";
 import { editKeyFromHash } from "./lib/editLink";
 import { saveEditKey } from "./lib/storage";
 import { initInstallPrompt } from "./lib/install";
+import { initUpdatePrompt } from "./lib/updatePrompt";
+import { showUpdateBanner, watchOffline } from "./components/pwaBanner";
+import { registerSW } from "virtual:pwa-register";
 
 // Appliqué avant le premier rendu pour éviter un flash du mauvais thème.
 applyTheme(getThemePreference());
@@ -55,3 +58,6 @@ function render(): void {
 
 window.addEventListener("popstate", render);
 render();
+
+watchOffline();
+initUpdatePrompt({ register: registerSW, showBanner: showUpdateBanner });
