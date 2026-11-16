@@ -49,3 +49,9 @@ Display sort ("Ordre défini" / "Prix ↑" / "Prix ↓") is a per-device prefere
 ## Workflow (owner's standing rule)
 
 No pull request is ever left waiting. For every change: push the branch, open the PR against `main`, wait for CI (all checks green), then rebase-merge it yourself (the `main` ruleset only allows rebase) — without asking. A red CI is fixed and re-pushed, never left open; a check that is red on `main` too (e.g. a new `npm audit` advisory) is fixed in the same PR. This includes Dependabot PRs: whenever you work on the repo, check for open PRs and merge every green one (verify major version bumps don't change the build output first). The session cannot delete remote branches; tell the owner which merged branches remain.
+
+## Documentation, versioning and architecture rules
+
+- `doc/` holds the stable truth for humans and agents: `architecture.md` (executable dependency rules), `codage.md` (conventions), `improvement.md` (backlog).
+- `npm run lint` also runs dependency-cruiser (`.dependency-cruiser.cjs`): no cycles, no orphan files, one-way layer dependencies. Document an exception next to the rule, never loosen it globally.
+- Commits follow Conventional Commits (`type(scope): subject`); enable the hook with `git config core.hooksPath .githooks`. The version is derived from the commits by semantic-release (`release.yml`): never edit a version number or a changelog by hand.
