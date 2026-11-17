@@ -101,6 +101,11 @@ describe("mountHomeView", () => {
     vi.unstubAllGlobals();
   });
 
+  it("affiche la version du projet en pied d'accueil (VER-09)", () => {
+    mountHomeView(root, navigate);
+    expect(root.querySelector(".app-version")?.textContent).toBe("Version 9.9.9-test");
+  });
+
   it("affiche l'accueil sans section de listes quand il n'y en a pas, sans texte parasite", () => {
     mountHomeView(root, navigate);
     expect(root.querySelector("h1")!.textContent).toBe("KesKeJeVoeux");
