@@ -1023,5 +1023,4 @@ a:focus-visible,
   text-align: center;
   font-size: 0.75rem;
   color: var(--text-muted, inherit);
-  opacity: 0.7;
 }
